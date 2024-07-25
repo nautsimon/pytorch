@@ -397,7 +397,15 @@ pr_time_benchmarks() {
   python benchmarks/dynamo/pr_time_benchmarks/benchmark_runner.py "$TEST_REPORTS_DIR/pr_time_benchmarks_before.txt"
   echo "content before"
   cat  "$TEST_REPORTS_DIR/pr_time_benchmarks_before.txt"
+  git checkout HEAD~1
 
+  # we can try firt to run develop alone, and if it worked then we do not need to run clean->develop.
+  # another suggestion was to use historical stored data insetad of building Head~1
+  python setup.py clean
+  python setup.py develop
+  python ./benchmarks/dynamo/pr_time_benchmarks/benchmark_runner.py "$TEST_REPORTS_DIR/pr_time_benchmarks_after.txt"
+  echo "content after:"
+  cat  "$TEST_REPORTS_DIR/pr_time_benchmarks_after.txt"
 }
 
 if [[ "${TEST_CONFIG}" == *pr_time_benchmarks* ]]; then
