@@ -14,7 +14,11 @@ WORKFLOW_LABEL_META = ""  # use meta runners
 WORKFLOW_LABEL_LF = "lf."  # use runners from the linux foundation
 WORKFLOW_LABEL_LF_CANARY = "lf.c."  # use canary runners from the linux foundation
 
+AMI_LEGACY = "legacy"
+AMI_AL2023 = "al2023"
+
 GITHUB_OUTPUT = os.getenv("GITHUB_OUTPUT", "")
+GH_OUTPUT_KEY_AMI = "ami"
 GH_OUTPUT_KEY_LABEL_TYPE = "label-type"
 
 
@@ -150,7 +154,7 @@ def get_workflow_type(issue: Issue, workflow_requestors: Iterable[str]) -> str:
             return WORKFLOW_LABEL_LF
         else:
             all_opted_in_users = {
-                usr_raw.strip("\n\t@ ") for usr_raw in first_comment.split()
+                usr_raw.strip("\n\t@ ").split(',')[0] for usr_raw in first_comment.split()
             }
             opted_in_requestors = {
                 usr for usr in workflow_requestors if usr in all_opted_in_users
@@ -171,6 +175,39 @@ def get_workflow_type(issue: Issue, workflow_requestors: Iterable[str]) -> str:
             f"Failed to get determine workflow type. Falling back to meta runners. Exception: {e}"
         )
         return WORKFLOW_LABEL_META
+
+
+def get_ami(issue: Issue, workflow_requestors: Iterable[str]) -> str:
+    try:
+        first_comment = issue.get_comments()[0].body.strip("\n\t ")
+        userlist = {
+            u.lstrip("#").strip("\n\t@ ") for u in first_comment.split()
+        }
+        all_opted_in_users = set()
+        for user in userlist:
+            for i in user.split(","):
+                if i == AMI_AL2023:
+                    all_opted_in_users.add(user.split(",")[0])
+
+        opted_in_requestors = {
+            usr for usr in workflow_requestors if usr in all_opted_in_users
+        }
+        if opted_in_requestors:
+            log.info(
+                f"Amazon Linux 2023 is enabled for {', '.join(opted_in_requestors)}. Using Amazon Linux 2023."
+            )
+            return AMI_AL2023
+        else:
+            log.info(
+                f"Amazon Linux 2023 is disabled for {', '.join(opted_in_requestors)}. Using Amazon Linux Legacy."
+            )
+            return AMI_LEGACY
+
+    except Exception as e:
+        log.error(
+            f"Failed to determine AMI to use. Falling back to legacy AMI. Exception: {e}"
+        )
+        return AMI_LEGACY
 
 
 def main() -> None:
@@ -198,6 +235,14 @@ def main() -> None:
                     username,
                 ),
             )
+
+            ami = get_ami(
+                issue,
+                (
+                    args.github_issue_owner,
+                    username,
+                )
+            )
         except Exception as e:
             log.error(
                 f"Failed to get issue. Falling back to meta runners. Exception: {e}"
@@ -209,6 +254,7 @@ def main() -> None:
         label_type = WORKFLOW_LABEL_LF_CANARY
 
     set_github_output(GH_OUTPUT_KEY_LABEL_TYPE, label_type)
+    set_github_output(GH_OUTPUT_KEY_AMI, ami)
 
 
 if __name__ == "__main__":
