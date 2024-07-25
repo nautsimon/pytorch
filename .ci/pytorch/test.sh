@@ -391,7 +391,19 @@ test_inductor_cpp_wrapper_abi_compatible() {
 # .github/workflows/inductor-perf-test-nightly.yml
 DYNAMO_BENCHMARK_FLAGS=()
 
-if [[ "${TEST_CONFIG}" == *dynamo_eager* ]]; then
+pr_time_benchmarks() {
+  TEST_REPORTS_DIR=$(pwd)/test/test-reports
+  mkdir -p "$TEST_REPORTS_DIR"
+  python benchmarks/dynamo/pr_time_benchmarks/benchmark_runner.py "$TEST_REPORTS_DIR/pr_time_benchmarks_before.txt"
+  echo "content before"
+  cat  "$TEST_REPORTS_DIR/pr_time_benchmarks_before.txt"
+
+}
+
+if [[ "${TEST_CONFIG}" == *pr_time_benchmarks* ]]; then
+  pr_time_benchmarks
+  exit 0
+elif [[ "${TEST_CONFIG}" == *dynamo_eager* ]]; then
   DYNAMO_BENCHMARK_FLAGS+=(--backend eager)
 elif [[ "${TEST_CONFIG}" == *aot_eager* ]]; then
   DYNAMO_BENCHMARK_FLAGS+=(--backend aot_eager)
